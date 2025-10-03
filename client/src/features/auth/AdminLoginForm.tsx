@@ -7,7 +7,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from './AuthContext';
 
-export function LoginForm() {
+export function AdminLoginForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -20,7 +20,7 @@ export function LoginForm() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/login', {
+      const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -32,22 +32,14 @@ export function LoginForm() {
         throw new Error(data.message || 'Failed to login');
       }
 
-      login(data);
+      await login(data);
       toast({
         title: 'Login Successful!',
-        description: 'Welcome back!',
+        description: 'Welcome, Admin!',
       });
-
-      // Redirect based on role
-      if (data.role === 'vendor') {
-        navigate('/vendor/dashboard');
-      } else if (data.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/dashboard');
-      }
-      
+      navigate('/admin/dashboard');
     } catch (error) {
+      console.error(error);
       toast({
         title: 'Login Failed',
         description: error instanceof Error ? error.message : 'An unknown error occurred.',
@@ -64,7 +56,7 @@ export function LoginForm() {
         <CardContent className="pt-6 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your.email@example.com" required />
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@ewaste.com" required />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -73,7 +65,7 @@ export function LoginForm() {
         </CardContent>
         <CardFooter>
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? 'Logging in...' : 'Login'}
+            {isSubmitting ? 'Logging in...' : 'Login as Admin'}
           </Button>
         </CardFooter>
       </Card>

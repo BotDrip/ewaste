@@ -8,6 +8,8 @@ import { SignupPage } from '@/pages/SignupPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { Navbar } from '@/components/Navbar';
 import { AIDetectionPage } from '@/pages/AIDetectionPage';
+import { VendorDashboardPage } from '@/pages/VendorDashboardPage';
+import { AdminDashboardPage } from '@/pages/AdminDashboardPage';
 
 function App() {
   return (
@@ -26,23 +28,45 @@ function App() {
 }
 
 function AppRoutes() {
-  const { user, isLoading } = useAuth();
+  const { session, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <p>Loading...</p>
+      <div className="flex justify-center items-center h-[calc(100vh-4rem)]">
+        <p>Loading session...</p>
       </div>
     );
   }
 
+  const getHomeRedirect = () => {
+      if (!session) return "/";
+      switch(session.role) {
+          case 'admin': return "/admin/dashboard";
+          case 'vendor': return "/vendor/dashboard";
+          default: return "/dashboard";
+      }
+  }
+
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/dashboard" />} />
-      <Route path="/signup" element={!user ? <SignupPage /> : <Navigate to="/dashboard" />} />
-      <Route path="/dashboard" element={user ? <DashboardPage /> : <Navigate to="/login" />} />
-      <Route path="/ai-detection" element={user ? <AIDetectionPage /> : <Navigate to="/login" />} />
+      <Route path="/" element={session ? <Navigate to={getHomeRedirect()} /> : <HomePage />} />
+      
+      {/* Auth Routes */}
+      <Route path="/login" element={!session ? <LoginPage /> : <Navigate to={getHomeRedirect()} />} />
+      <Route path="/signup" element={!session ? <SignupPage /> : <Navigate to={getHomeRedirect()} />} />
+      
+      {/* User Routes */}
+      <Route path="/dashboard" element={session?.role === 'user' ? <DashboardPage /> : <Navigate to="/login" />} />
+      <Route path="/ai-detection" element={session?.role === 'user' ? <AIDetectionPage /> : <Navigate to="/login" />} />
+
+      {/* Vendor Routes */}
+      <Route path="/vendor/dashboard" element={session?.role === 'vendor' ? <VendorDashboardPage /> : <Navigate to="/login" />} />
+
+      {/* Admin Routes */}
+      <Route path="/admin/dashboard" element={session?.role === 'admin' ? <AdminDashboardPage /> : <Navigate to="/login" />} />
+
+      {/* Fallback Route */}
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
 }

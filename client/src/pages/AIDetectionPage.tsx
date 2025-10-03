@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { UploadCloud, Sparkles } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 export function AIDetectionPage() {
   const { toast } = useToast();
@@ -12,12 +13,14 @@ export function AIDetectionPage() {
   const [preview, setPreview] = React.useState<string | null>(null);
   const [isDetecting, setIsDetecting] = React.useState(false);
   const [detectionResult, setDetectionResult] = React.useState<string | null>(null);
+  const [progress, setProgress] = React.useState(0);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
       setDetectionResult(null);
+      setProgress(0);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result as string);
@@ -25,6 +28,17 @@ export function AIDetectionPage() {
       reader.readAsDataURL(selectedFile);
     }
   };
+
+  const fileToGenerativePart = async (file: File) => {
+    const base64EncodedDataPromise = new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+      reader.readAsDataURL(file);
+    });
+    return {
+      inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
+    };
+  }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -38,28 +52,51 @@ export function AIDetectionPage() {
     }
 
     setIsDetecting(true);
-    setDetectionResult(null);
-    const formData = new FormData();
-    formData.append('ewasteImage', file);
+    setDetectionResult('Analyzing image...');
+    setProgress(30);
 
     try {
-      const response = await fetch('/api/detect', {
+      const apiKey = ""; // Canvas will provide this
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+      
+      const imagePart = await fileToGenerativePart(file);
+      const prompt = "Analyze this image and identify the electronic waste item. Describe what it is. If it's not e-waste, say so.";
+
+      const payload = {
+        contents: [{
+          parts: [{ text: prompt }, imagePart],
+        }],
+      };
+      
+      setProgress(60);
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to detect e-waste');
+        throw new Error('Failed to get a response from the AI model.');
       }
-
+      
+      setProgress(80);
       const result = await response.json();
-      setDetectionResult(result.message);
-      toast({
-        title: 'Detection Complete!',
-        description: result.message,
-      });
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (text) {
+        setDetectionResult(text);
+        toast({
+          title: 'Detection Complete!',
+        });
+      } else {
+        throw new Error('Could not parse the AI response.');
+      }
+      setProgress(100);
+
     } catch (error) {
       console.error(error);
+      setDetectionResult(null);
       toast({
         title: 'Error',
         description: 'There was a problem detecting the e-waste.',
@@ -75,13 +112,13 @@ export function AIDetectionPage() {
       <div className="mb-8 text-center">
         <h2 className="text-3xl font-bold mb-2">AI E-Waste Detection</h2>
         <p className="text-muted-foreground">
-          Upload an image of an electronic item to identify it. (This is a simulation)
+          Upload an image of an electronic item to identify it using Gemini.
         </p>
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Upload Image</CardTitle>
-          <CardDescription>Our AI will try to identify the type of e-waste from your image.</CardDescription>
+          <CardDescription>Our AI will analyze the image and identify the type of e-waste.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -107,12 +144,20 @@ export function AIDetectionPage() {
             )}
 
             <Button type="submit" className="w-full" disabled={isDetecting || !file}>
-              {isDetecting ? 'Detecting...' : <> <Sparkles className="mr-2 h-4 w-4" /> Detect E-Waste </>}
+              {isDetecting ? 'Analyzing...' : <> <Sparkles className="mr-2 h-4 w-4" /> Detect E-Waste </>}
             </Button>
 
-            {detectionResult && (
-              <div className="mt-6 rounded-md border border-primary/20 bg-primary/10 p-4 text-center">
-                <p className="font-semibold text-lg text-primary">{detectionResult}</p>
+            {isDetecting && (
+                <div className="space-y-2">
+                    <Progress value={progress} className="w-full" />
+                    <p className="text-sm text-center text-muted-foreground">AI is thinking...</p>
+                </div>
+            )}
+
+            {detectionResult && !isDetecting && (
+              <div className="mt-6 rounded-md border border-primary/20 bg-primary/10 p-4">
+                <p className="font-semibold text-primary">AI Analysis:</p>
+                <p className="mt-2 text-primary/90">{detectionResult}</p>
               </div>
             )}
           </form>

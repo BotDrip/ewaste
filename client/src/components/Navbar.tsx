@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Recycle } from 'lucide-react';
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, vendor, admin, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -30,24 +30,26 @@ export function Navbar() {
                 <span>Points:</span>
                 <span className="text-primary">{user.points}</span>
               </div>
-              <Link to="/dashboard">
-                <Button variant="ghost">Dashboard</Button>
-              </Link>
-              <Link to="/ai-detection">
-                <Button variant="ghost">AI Detection</Button>
-              </Link>
-              <Button onClick={handleLogout} variant="secondary">
-                Logout
-              </Button>
+              <Link to="/dashboard"><Button variant="ghost">Dashboard</Button></Link>
+              <Link to="/ai-detection"><Button variant="ghost">AI Detection</Button></Link>
+              <Button onClick={handleLogout} variant="secondary">Logout</Button>
+            </>
+          ) : vendor ? (
+            <>
+              <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {vendor.name}!</span>
+              <Link to="/vendor/dashboard"><Button variant="ghost">Dashboard</Button></Link>
+              <Button onClick={handleLogout} variant="secondary">Logout</Button>
+            </>
+          ) : admin ? (
+             <>
+              <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {admin.name}!</span>
+              <Link to="/admin/dashboard"><Button variant="ghost">Admin Panel</Button></Link>
+              <Button onClick={handleLogout} variant="secondary">Logout</Button>
             </>
           ) : (
             <>
-              <Link to="/login">
-                <Button variant="ghost">Login</Button>
-              </Link>
-              <Link to="/signup">
-                <Button variant="default">Sign Up</Button>
-              </Link>
+              <Link to="/login"><Button variant="ghost">Login</Button></Link>
+              <Link to="/signup"><Button variant="default">Sign Up</Button></Link>
             </>
           )}
         </nav>

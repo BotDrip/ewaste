@@ -5,22 +5,24 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key';
 
 export interface AuthRequest extends Request {
   userId?: number;
+  vendorId?: number;
+  adminId?: number;
 }
 
 export function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) {
   const token = req.cookies.token;
 
   if (!token) {
-    res.sendStatus(401);
-    return;
+    return res.sendStatus(401);
   }
 
   jwt.verify(token, JWT_SECRET, (err: any, payload: any) => {
     if (err) {
-      res.sendStatus(403);
-      return;
+      return res.sendStatus(403);
     }
-    req.userId = payload.userId;
+    if (payload.userId) req.userId = payload.userId;
+    if (payload.vendorId) req.vendorId = payload.vendorId;
+    if (payload.adminId) req.adminId = payload.adminId;
     next();
   });
 }

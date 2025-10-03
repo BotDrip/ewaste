@@ -13,7 +13,7 @@ interface PickupFormProps {
 
 export function PickupForm({ onPickupRequested }: PickupFormProps) {
   const { toast } = useToast();
-  const { user, refreshUser } = useAuth();
+  const { session, refreshSession } = useAuth();
   const [address, setAddress] = React.useState('');
   const [itemsDescription, setItemsDescription] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -48,7 +48,7 @@ export function PickupForm({ onPickupRequested }: PickupFormProps) {
       setItemsDescription('');
       
       onPickupRequested();
-      await refreshUser(); // Refresh user to show updated points
+      await refreshSession(); // Refresh session to show updated points
     } catch (error) {
       console.error(error);
       toast({
@@ -68,11 +68,11 @@ export function PickupForm({ onPickupRequested }: PickupFormProps) {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Name</Label>
-              <Input value={user?.name || ''} disabled />
+              <Input value={session?.name || ''} disabled />
             </div>
             <div className="space-y-2">
               <Label>Email</Label>
-              <Input value={user?.email || ''} disabled />
+              <Input value={session?.email || ''} disabled />
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Pickup Address</Label>
@@ -93,3 +93,4 @@ export function PickupForm({ onPickupRequested }: PickupFormProps) {
     </form>
   );
 }
+
