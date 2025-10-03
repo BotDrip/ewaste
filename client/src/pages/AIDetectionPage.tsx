@@ -2,8 +2,9 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
+import { UploadCloud, Sparkles } from 'lucide-react';
 
 export function AIDetectionPage() {
   const { toast } = useToast();
@@ -70,35 +71,48 @@ export function AIDetectionPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <h2 className="text-3xl font-bold mb-4 text-center">AI E-Waste Detection</h2>
-      <p className="text-muted-foreground mb-6 text-center">
-        Upload an image of an electronic item to identify it. (This is a simulation)
-      </p>
+    <div className="container mx-auto max-w-2xl px-4 py-8">
+      <div className="mb-8 text-center">
+        <h2 className="text-3xl font-bold mb-2">AI E-Waste Detection</h2>
+        <p className="text-muted-foreground">
+          Upload an image of an electronic item to identify it. (This is a simulation)
+        </p>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Upload Image</CardTitle>
+          <CardDescription>Our AI will try to identify the type of e-waste from your image.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="ewaste-image">E-Waste Image</Label>
-              <Input id="ewaste-image" type="file" accept="image/*" onChange={handleFileChange} />
+              <Label htmlFor="ewaste-image" className="sr-only">E-Waste Image</Label>
+              <div className="flex w-full items-center justify-center">
+                <label htmlFor="ewaste-image" className="flex h-64 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-card hover:bg-secondary/50">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <UploadCloud className="mb-3 h-10 w-10 text-muted-foreground" />
+                        <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG, or GIF</p>
+                    </div>
+                    <Input id="ewaste-image" type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                </label>
+              </div> 
             </div>
 
             {preview && (
               <div className="mt-4">
-                <img src={preview} alt="E-waste preview" className="max-h-60 rounded-md mx-auto" />
+                <p className="text-sm font-medium text-center mb-2">Image Preview:</p>
+                <img src={preview} alt="E-waste preview" className="mx-auto max-h-60 rounded-md shadow-md" />
               </div>
             )}
 
             <Button type="submit" className="w-full" disabled={isDetecting || !file}>
-              {isDetecting ? 'Detecting...' : 'Detect E-Waste'}
+              {isDetecting ? 'Detecting...' : <> <Sparkles className="mr-2 h-4 w-4" /> Detect E-Waste </>}
             </Button>
 
             {detectionResult && (
-              <div className="mt-6 p-4 bg-secondary rounded-md text-center">
-                <p className="font-semibold text-lg">{detectionResult}</p>
+              <div className="mt-6 rounded-md border border-primary/20 bg-primary/10 p-4 text-center">
+                <p className="font-semibold text-lg text-primary">{detectionResult}</p>
               </div>
             )}
           </form>

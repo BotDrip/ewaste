@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Recycle } from 'lucide-react';
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -13,16 +14,22 @@ export function Navbar() {
   };
 
   return (
-    <header className="bg-primary text-primary-foreground">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <Link to="/" className="text-2xl font-bold">
-          E-Waste Recycler
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        <Link to="/" className="flex items-center gap-2 font-bold text-primary">
+          <Recycle className="h-6 w-6" />
+          <span className="hidden font-bold sm:inline-block">
+            E-Waste Recycler
+          </span>
         </Link>
-        <nav className="flex items-center gap-4">
+        <nav className="flex items-center gap-2">
           {user ? (
             <>
-              <span className="hidden sm:inline">Welcome, {user.name}!</span>
-              <span className="font-bold">Points: {user.points}</span>
+              <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {user.name}!</span>
+              <div className="hidden sm:flex items-center gap-2 bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">
+                <span>Points:</span>
+                <span className="text-primary">{user.points}</span>
+              </div>
               <Link to="/dashboard">
                 <Button variant="ghost">Dashboard</Button>
               </Link>
@@ -39,7 +46,7 @@ export function Navbar() {
                 <Button variant="ghost">Login</Button>
               </Link>
               <Link to="/signup">
-                <Button variant="secondary">Sign Up</Button>
+                <Button variant="default">Sign Up</Button>
               </Link>
             </>
           )}
