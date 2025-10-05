@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/features/auth/AuthContext';
+import { MapPin } from 'lucide-react';
 
 interface PickupFormProps {
   onPickupRequested: () => void;
@@ -17,10 +18,51 @@ export function PickupForm({ onPickupRequested }: PickupFormProps) {
   const [address, setAddress] = React.useState('');
   const [itemsDescription, setItemsDescription] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [location, setLocation] = React.useState<{ latitude: number; longitude: number } | null>(null);
+  const [isLocating, setIsLocating] = React.useState(false);
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation is not supported by your browser",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        toast({
+          title: "Location Fetched!",
+          description: "Your current location will be used for pickup.",
+        });
+        setIsLocating(false);
+      },
+      () => {
+        toast({
+          title: "Unable to retrieve your location",
+          description: "Please enter your address manually.",
+          variant: "destructive",
+        });
+        setIsLocating(false);
+      }
+    );
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
+
+    if (!address) {
+        toast({ title: 'Address is required', variant: 'destructive' });
+        setIsSubmitting(false);
+        return;
+    }
 
     try {
       const response = await fetch('/api/pickups', {
@@ -31,6 +73,8 @@ export function PickupForm({ onPickupRequested }: PickupFormProps) {
         body: JSON.stringify({
           address,
           items_description: itemsDescription,
+          latitude: location?.latitude,
+          longitude: location?.longitude,
         }),
       });
 
@@ -46,6 +90,7 @@ export function PickupForm({ onPickupRequested }: PickupFormProps) {
       // Clear form
       setAddress('');
       setItemsDescription('');
+      setLocation(null);
       
       onPickupRequested();
       await refreshSession(); // Refresh session to show updated points
@@ -76,7 +121,15 @@ export function PickupForm({ onPickupRequested }: PickupFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Pickup Address</Label>
-              <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Anytown, USA" required />
+               <div className="flex items-center gap-2">
+                <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Anytown, USA" required />
+                <Button type="button" variant="outline" size="icon" onClick={handleGetLocation} disabled={isLocating} title="Get my current location">
+                  <MapPin className="h-4 w-4" />
+                  <span className="sr-only">Get my location</span>
+                </Button>
+              </div>
+              {isLocating && <p className="text-sm text-muted-foreground animate-pulse">Getting location...</p>}
+              {location && <p className="text-sm text-green-600">Location captured successfully!</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="items">E-Waste Items</Label>
@@ -93,4 +146,3 @@ export function PickupForm({ onPickupRequested }: PickupFormProps) {
     </form>
   );
 }
-

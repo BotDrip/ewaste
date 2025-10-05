@@ -7,4 +7,6 @@ export interface Pickup {
   items_description: string;
   status: 'pending' | 'scheduled' | 'completed' | 'cancelled';
   requested_at: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }

@@ -21,6 +21,8 @@ export interface PickupTable {
   vendor_id: number | null;
   name: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
   email: string;
   items_description: string;
   status: 'pending' | 'scheduled' | 'completed' | 'cancelled';

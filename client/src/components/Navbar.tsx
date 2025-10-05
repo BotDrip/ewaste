@@ -2,10 +2,10 @@ import * as React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Recycle } from 'lucide-react';
+import { Recycle, LogOut } from 'lucide-react';
 
 export function Navbar() {
-  const { user, vendor, admin, logout } = useAuth();
+  const { session, logout, isLoading } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -23,28 +23,27 @@ export function Navbar() {
           </span>
         </Link>
         <nav className="flex items-center gap-2">
-          {user ? (
+          {isLoading ? (
+            <div className="h-8 w-24 animate-pulse rounded-md bg-muted"></div>
+          ) : session ? (
             <>
-              <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {user.name}!</span>
-              <div className="hidden sm:flex items-center gap-2 bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">
-                <span>Points:</span>
-                <span className="text-primary">{user.points}</span>
-              </div>
-              <Link to="/dashboard"><Button variant="ghost">Dashboard</Button></Link>
-              <Link to="/ai-detection"><Button variant="ghost">AI Detection</Button></Link>
-              <Button onClick={handleLogout} variant="secondary">Logout</Button>
-            </>
-          ) : vendor ? (
-            <>
-              <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {vendor.name}!</span>
-              <Link to="/vendor/dashboard"><Button variant="ghost">Dashboard</Button></Link>
-              <Button onClick={handleLogout} variant="secondary">Logout</Button>
-            </>
-          ) : admin ? (
-             <>
-              <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {admin.name}!</span>
-              <Link to="/admin/dashboard"><Button variant="ghost">Admin Panel</Button></Link>
-              <Button onClick={handleLogout} variant="secondary">Logout</Button>
+              <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {session.name}!</span>
+              {session.role === 'user' && (
+                <div className="hidden sm:flex items-center gap-2 bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">
+                  <span>Points:</span>
+                  <span className="text-primary">{session.points}</span>
+                </div>
+              )}
+              
+              {session.role === 'user' && <Link to="/dashboard"><Button variant="ghost">Dashboard</Button></Link>}
+              {session.role === 'user' && <Link to="/ai-detection"><Button variant="ghost">AI Detection</Button></Link>}
+              {session.role === 'vendor' && <Link to="/vendor/dashboard"><Button variant="ghost">Dashboard</Button></Link>}
+              {session.role === 'admin' && <Link to="/admin/dashboard"><Button variant="ghost">Admin Panel</Button></Link>}
+              
+              <Button onClick={handleLogout} variant="ghost" size="icon" title="Logout">
+                  <LogOut className="h-5 w-5" />
+                  <span className="sr-only">Logout</span>
+              </Button>
             </>
           ) : (
             <>

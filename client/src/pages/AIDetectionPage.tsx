@@ -56,7 +56,11 @@ export function AIDetectionPage() {
     setProgress(30);
 
     try {
-      const apiKey = ""; // Canvas will provide this
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey || apiKey === 'YOUR_GOOGLE_AI_GEMINI_API_KEY') {
+        throw new Error("VITE_GEMINI_API_KEY is not set in your client/.env file.");
+      }
+
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
       
       const imagePart = await fileToGenerativePart(file);
@@ -96,10 +100,11 @@ export function AIDetectionPage() {
 
     } catch (error) {
       console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'There was a problem detecting the e-waste.';
       setDetectionResult(null);
       toast({
         title: 'Error',
-        description: 'There was a problem detecting the e-waste.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {

@@ -18,7 +18,7 @@ async function migrate() {
       .addColumn('name', 'text', (col) => col.notNull())
       .addColumn('email', 'text', (col) => col.notNull().unique())
       .addColumn('password_hash', 'text', (col) => col.notNull())
-      .addColumn('role', 'text', (col) => col.notNull())
+      .addColumn('role', 'text', (col) => col.notNull()) // 'user', 'vendor', or 'admin'
       .addColumn('points', 'integer', (col) => col.notNull().defaultTo(0))
       .addColumn('city', 'text')
       .addColumn('address', 'text')
@@ -27,7 +27,7 @@ async function migrate() {
       .execute();
     console.log('Created unified users table.');
 
-    // Create the pickups table with a foreign key to the new users table
+    // Create the pickups table with foreign keys to the new users table
     await db.schema
       .createTable('pickups')
       .addColumn('id', 'integer', (col) => col.primaryKey().autoIncrement())
@@ -35,6 +35,8 @@ async function migrate() {
       .addColumn('vendor_id', 'integer', (col) => col.references('users.id'))
       .addColumn('name', 'text', (col) => col.notNull())
       .addColumn('address', 'text', (col) => col.notNull())
+      .addColumn('latitude', 'real')
+      .addColumn('longitude', 'real')
       .addColumn('email', 'text', (col) => col.notNull())
       .addColumn('items_description', 'text', (col) => col.notNull())
       .addColumn('status', 'text', (col) => col.notNull().defaultTo('pending'))

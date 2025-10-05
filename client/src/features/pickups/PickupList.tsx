@@ -15,16 +15,16 @@ export function PickupList({ filter = 'user' }: PickupListProps) {
   const [pickups, setPickups] = React.useState<Pickup[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const { user, vendor } = useAuth();
+  const { session } = useAuth();
   const { toast } = useToast();
 
-  const getApiEndpoint = () => {
-    if (vendor) {
+  const getApiEndpoint = React.useCallback(() => {
+    if (session?.role === 'vendor') {
       if (filter === 'available') return '/api/vendor/pickups/available';
       if (filter === 'assigned') return '/api/vendor/pickups/assigned';
     }
     return '/api/pickups'; // Default for users
-  };
+  }, [session, filter]);
 
   const fetchPickups = React.useCallback(async () => {
     setIsLoading(true);
@@ -45,7 +45,7 @@ export function PickupList({ filter = 'user' }: PickupListProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [filter, vendor]);
+  }, [getApiEndpoint]);
 
   React.useEffect(() => {
     fetchPickups();
@@ -86,7 +86,7 @@ export function PickupList({ filter = 'user' }: PickupListProps) {
                 <TableHead>Items</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
-                {vendor && filter === 'available' && <TableHead>Action</TableHead>}
+                {session?.role === 'vendor' && filter === 'available' && <TableHead className="text-right">Action</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -95,13 +95,13 @@ export function PickupList({ filter = 'user' }: PickupListProps) {
                   <TableCell>{pickup.address}</TableCell>
                   <TableCell>{pickup.items_description}</TableCell>
                   <TableCell>
-                    <Badge variant={pickup.status === 'completed' ? 'default' : 'secondary'}>
+                    <Badge variant={pickup.status === 'completed' ? 'default' : pickup.status === 'pending' ? 'outline' : 'secondary'}>
                       {pickup.status}
                     </Badge>
                   </TableCell>
                   <TableCell>{new Date(pickup.requested_at).toLocaleDateString()}</TableCell>
-                  {vendor && filter === 'available' && (
-                    <TableCell>
+                  {session?.role === 'vendor' && filter === 'available' && (
+                    <TableCell className="text-right">
                       <Button size="sm" onClick={() => handleAssign(pickup.id)}>Accept</Button>
                     </TableCell>
                   )}

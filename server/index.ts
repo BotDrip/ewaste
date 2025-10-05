@@ -121,7 +121,7 @@ app.get('/api/pickups', authenticateToken, async (req: AuthRequest, res) => {
 
 app.post('/api/pickups', authenticateToken, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
-  const { address, items_description } = req.body;
+  const { address, items_description, latitude, longitude } = req.body;
   
   if (!address || !items_description) {
     return res.status(400).json({ message: 'Missing required fields' });
@@ -130,13 +130,21 @@ app.post('/api/pickups', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const user = await db.selectFrom('users').where('id', '=', req.userId).select(['name', 'email']).executeTakeFirstOrThrow();
     const newPickup = await db.insertInto('pickups').values({
-        user_id: req.userId, name: user.name, email: user.email, address, items_description,
-        status: 'pending', requested_at: new Date().toISOString(),
+        user_id: req.userId, 
+        name: user.name, 
+        email: user.email, 
+        address, 
+        items_description,
+        latitude,
+        longitude,
+        status: 'pending', 
+        requested_at: new Date().toISOString(),
     }).returningAll().executeTakeFirstOrThrow();
     
     await db.updateTable('users').set((eb) => ({ points: eb('points', '+', 10) })).where('id', '=', req.userId).execute();
     res.status(201).json(newPickup);
   } catch (err) {
+    console.error('Failed to create pickup', err);
     res.status(500).json({ message: 'Failed to create pickup' });
   }
 });
@@ -163,7 +171,9 @@ app.get('/api/vendor/pickups/available', authenticateToken, async (req: AuthRequ
 });
 
 app.put('/api/pickups/:id/assign', authenticateToken, async (req: AuthRequest, res) => {
+    if (req.userRole !== 'vendor') return res.status(403).json({ message: 'Only vendors can assign pickups.'});
     if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
+    
     const pickupId = parseInt(req.params.id, 10);
     try {
         const updatedPickup = await db.updateTable('pickups')
@@ -174,16 +184,19 @@ app.put('/api/pickups/:id/assign', authenticateToken, async (req: AuthRequest, r
             .executeTakeFirstOrThrow();
         res.json(updatedPickup);
     } catch (error) {
-        res.status(500).json({ message: 'Failed to assign pickup' });
+        console.error('Failed to assign pickup', error);
+        res.status(500).json({ message: 'Failed to assign pickup. It may have already been taken.' });
     }
 });
 
 
 // --- ADMIN ROUTES ---
 app.get('/api/admin/vendors', authenticateToken, async (req: AuthRequest, res) => {
-    if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
+    if (req.userRole !== 'admin') {
+        return res.status(403).json({ message: 'Forbidden: Admins only.' });
+    }
+
     try {
-        // A check should be here to ensure the user has the 'admin' role
         const vendors = await db.selectFrom('users').where('role', '=', 'vendor').select(['id', 'name', 'email', 'city', 'address']).execute();
         res.json(vendors);
     } catch (error) {
