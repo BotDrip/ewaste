@@ -1,33 +1,35 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
-import cors from 'cors'; // Import the cors middleware
-import { setupStaticServing } from './static-serve.js';
-import { db } from './db.js';
-import { authenticateToken, AuthRequest } from './auth.js';
+import cors from 'cors';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
+import { setupStaticServing } from './static-serve.js';
+import { db } from './db.js';
+import { createAuthMiddleware, AuthRequest } from './auth.js';
+
+// Load environment variables
 dotenv.config();
 
+// --- CONFIG ---
 const app = express();
+const PORT = parseInt(process.env.PORT || '3001', 10);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key';
 
 // --- MIDDLEWARE ---
-
-// FIX: Added CORS middleware to allow credentials from the frontend origin
 app.use(cors({
-  origin: 'http://localhost:3000', // Allow requests from your Vite dev server
-  credentials: true, // Allow cookies to be sent
+  origin: 'http://localhost:3000', // Frontend origin
+  credentials: true,               // Allow cookies
 }));
-
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Create reusable auth middleware
+const authenticateToken = createAuthMiddleware(JWT_SECRET);
 
-// --- UNIFIED AUTH ROUTES ---
-
+// --- AUTH ROUTES ---
 app.post('/api/register', async (req, res) => {
   const { name, email, password, role, city, address, latitude, longitude } = req.body;
 
@@ -36,11 +38,15 @@ app.post('/api/register', async (req, res) => {
   }
 
   if (role === 'vendor' && (!city || !address)) {
-      return res.status(400).json({ message: 'City and address are required for vendors' });
+    return res.status(400).json({ message: 'City and address are required for vendors' });
   }
 
   try {
-    const existingUser = await db.selectFrom('users').where('email', '=', email).select('id').executeTakeFirst();
+    const existingUser = await db.selectFrom('users')
+      .where('email', '=', email)
+      .select('id')
+      .executeTakeFirst();
+
     if (existingUser) {
       return res.status(409).json({ message: 'User with this email already exists' });
     }
@@ -49,22 +55,31 @@ app.post('/api/register', async (req, res) => {
 
     const newUser = await db
       .insertInto('users')
-      .values({ 
-          name, 
-          email, 
-          password_hash, 
-          role,
-          city: role === 'vendor' ? city : null,
-          address: role === 'vendor' ? address : null,
-          latitude: role === 'vendor' ? (latitude || 0) : null,
-          longitude: role === 'vendor' ? (longitude || 0) : null
+      .values({
+        name,
+        email,
+        password_hash,
+        role,
+        city: role === 'vendor' ? city : null,
+        address: role === 'vendor' ? address : null,
+        latitude: role === 'vendor' ? (latitude || 0) : null,
+        longitude: role === 'vendor' ? (longitude || 0) : null,
       })
       .returning(['id', 'name', 'email', 'points', 'role', 'city'])
       .executeTakeFirstOrThrow();
 
-    const token = jwt.sign({ userId: newUser.id, role: newUser.role }, JWT_SECRET, { expiresIn: '1d' });
-    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
-    
+    const token = jwt.sign(
+      { userId: newUser.id, role: newUser.role },
+      JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
     res.status(201).json(newUser);
   } catch (err) {
     console.error('Failed to register user:', err);
@@ -74,19 +89,33 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
+
+  if (!email || !password)
     return res.status(400).json({ message: 'Email and password are required' });
-  }
 
   try {
-    const user = await db.selectFrom('users').where('email', '=', email).selectAll().executeTakeFirst();
+    const user = await db
+      .selectFrom('users')
+      .where('email', '=', email)
+      .selectAll()
+      .executeTakeFirst();
+
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) return res.status(401).json({ message: 'Invalid credentials' });
 
-    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
-    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
 
     const { password_hash, ...userWithoutPassword } = user;
     res.status(200).json(userWithoutPassword);
@@ -102,55 +131,78 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.get('/api/me', authenticateToken, async (req: AuthRequest, res) => {
-    if (!req.userId) return res.status(401).json({ message: 'Not authenticated' });
-    try {
-        const user = await db.selectFrom('users')
-        .where('id', '=', req.userId)
-        .select(['id', 'name', 'email', 'points', 'role', 'city', 'address'])
-        .executeTakeFirst();
+  if (!req.userId) return res.status(401).json({ message: 'Not authenticated' });
 
-        if (!user) return res.status(404).json({ message: 'User not found' });
-        res.json(user);
-    } catch(err) {
-        res.status(500).json({ message: 'Failed to fetch user profile' });
-    }
+  try {
+    const user = await db
+      .selectFrom('users')
+      .where('id', '=', req.userId)
+      .select(['id', 'name', 'email', 'points', 'role', 'city', 'address'])
+      .executeTakeFirst();
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json(user);
+  } catch {
+    res.status(500).json({ message: 'Failed to fetch user profile' });
+  }
 });
-
 
 // --- PICKUP ROUTES ---
 app.get('/api/pickups', authenticateToken, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
+
   try {
-    const pickups = await db.selectFrom('pickups').where('user_id', '=', req.userId).selectAll().orderBy('requested_at', 'desc').execute();
+    const pickups = await db
+      .selectFrom('pickups')
+      .where('user_id', '=', req.userId)
+      .selectAll()
+      .orderBy('requested_at', 'desc')
+      .execute();
+
     res.json(pickups);
-  } catch (err) {
+  } catch {
     res.status(500).json({ message: 'Failed to fetch pickups' });
   }
 });
 
 app.post('/api/pickups', authenticateToken, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
+
   const { address, items_description, latitude, longitude } = req.body;
-  
-  if (!address || !items_description) {
+
+  if (!address || !items_description)
     return res.status(400).json({ message: 'Missing required fields' });
-  }
 
   try {
-    const user = await db.selectFrom('users').where('id', '=', req.userId).select(['name', 'email']).executeTakeFirstOrThrow();
-    const newPickup = await db.insertInto('pickups').values({
-        user_id: req.userId, 
-        name: user.name, 
-        email: user.email, 
-        address, 
+    const user = await db
+      .selectFrom('users')
+      .where('id', '=', req.userId)
+      .select(['name', 'email'])
+      .executeTakeFirstOrThrow();
+
+    const newPickup = await db
+      .insertInto('pickups')
+      .values({
+        user_id: req.userId,
+        name: user.name,
+        email: user.email,
+        address,
         items_description,
         latitude,
         longitude,
-        status: 'pending', 
+        status: 'pending',
         requested_at: new Date().toISOString(),
-    }).returningAll().executeTakeFirstOrThrow();
-    
-    await db.updateTable('users').set((eb) => ({ points: eb('points', '+', 10) })).where('id', '=', req.userId).execute();
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    await db
+      .updateTable('users')
+      .set((eb) => ({ points: eb('points', '+', 10) }))
+      .where('id', '=', req.userId)
+      .execute();
+
     res.status(201).json(newPickup);
   } catch (err) {
     console.error('Failed to create pickup', err);
@@ -160,68 +212,95 @@ app.post('/api/pickups', authenticateToken, async (req: AuthRequest, res) => {
 
 // --- VENDOR ROUTES ---
 app.get('/api/vendor/pickups/assigned', authenticateToken, async (req: AuthRequest, res) => {
-    if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
-    try {
-        const pickups = await db.selectFrom('pickups').where('vendor_id', '=', req.userId).selectAll().orderBy('assigned_at', 'desc').execute();
-        res.json(pickups);
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to fetch assigned pickups' });
-    }
+  if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
+
+  try {
+    const pickups = await db
+      .selectFrom('pickups')
+      .where('vendor_id', '=', req.userId)
+      .selectAll()
+      .orderBy('assigned_at', 'desc')
+      .execute();
+
+    res.json(pickups);
+  } catch {
+    res.status(500).json({ message: 'Failed to fetch assigned pickups' });
+  }
 });
 
 app.get('/api/vendor/pickups/available', authenticateToken, async (req: AuthRequest, res) => {
-    if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
-    try {
-        const pickups = await db.selectFrom('pickups').where('status', '=', 'pending').selectAll().orderBy('requested_at', 'desc').execute();
-        res.json(pickups);
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to fetch available pickups' });
-    }
+  if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
+
+  try {
+    const pickups = await db
+      .selectFrom('pickups')
+      .where('status', '=', 'pending')
+      .selectAll()
+      .orderBy('requested_at', 'desc')
+      .execute();
+
+    res.json(pickups);
+  } catch {
+    res.status(500).json({ message: 'Failed to fetch available pickups' });
+  }
 });
 
 app.put('/api/pickups/:id/assign', authenticateToken, async (req: AuthRequest, res) => {
-    if (req.userRole !== 'vendor') return res.status(403).json({ message: 'Only vendors can assign pickups.'});
-    if (!req.userId) return res.status(401).json({ message: 'Unauthorized' });
-    
-    const pickupId = parseInt(req.params.id, 10);
-    try {
-        const updatedPickup = await db.updateTable('pickups')
-            .set({ vendor_id: req.userId, status: 'scheduled', assigned_at: new Date().toISOString() })
-            .where('id', '=', pickupId)
-            .where('status', '=', 'pending')
-            .returningAll()
-            .executeTakeFirstOrThrow();
-        res.json(updatedPickup);
-    } catch (error) {
-        console.error('Failed to assign pickup', error);
-        res.status(500).json({ message: 'Failed to assign pickup. It may have already been taken.' });
-    }
-});
+  if (req.userRole !== 'vendor')
+    return res.status(403).json({ message: 'Only vendors can assign pickups.' });
 
+  if (!req.userId)
+    return res.status(401).json({ message: 'Unauthorized' });
+
+  const pickupId = parseInt(req.params.id, 10);
+
+  try {
+    const updatedPickup = await db
+      .updateTable('pickups')
+      .set({
+        vendor_id: req.userId,
+        status: 'scheduled',
+        assigned_at: new Date().toISOString(),
+      })
+      .where('id', '=', pickupId)
+      .where('status', '=', 'pending')
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    res.json(updatedPickup);
+  } catch (err) {
+    console.error('Failed to assign pickup', err);
+    res.status(500).json({ message: 'Failed to assign pickup. It may have already been taken.' });
+  }
+});
 
 // --- ADMIN ROUTES ---
 app.get('/api/admin/vendors', authenticateToken, async (req: AuthRequest, res) => {
-    if (req.userRole !== 'admin') {
-        return res.status(403).json({ message: 'Forbidden: Admins only.' });
-    }
+  if (req.userRole !== 'admin')
+    return res.status(403).json({ message: 'Forbidden: Admins only.' });
 
-    try {
-        const vendors = await db.selectFrom('users').where('role', '=', 'vendor').select(['id', 'name', 'email', 'city', 'address']).execute();
-        res.json(vendors);
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to fetch vendors' });
-    }
+  try {
+    const vendors = await db
+      .selectFrom('users')
+      .where('role', '=', 'vendor')
+      .select(['id', 'name', 'email', 'city', 'address'])
+      .execute();
+
+    res.json(vendors);
+  } catch {
+    res.status(500).json({ message: 'Failed to fetch vendors' });
+  }
 });
 
-
-// Export a function to start the server
+// --- START SERVER ---
 export async function startServer(port: number) {
   try {
     if (process.env.NODE_ENV === 'production') {
       setupStaticServing(app);
     }
+
     app.listen(port, () => {
-      console.log(`API Server running on port ${port}`);
+      console.log(`✅ API Server running on port ${port}`);
     });
   } catch (err) {
     console.error('Failed to start server:', err);
@@ -229,9 +308,8 @@ export async function startServer(port: number) {
   }
 }
 
-// Start the server directly if this is the main module
+// Start immediately if run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('Starting server...');
-  startServer(parseInt(process.env.PORT || '3001', 10));
+  startServer(PORT);
 }
-
