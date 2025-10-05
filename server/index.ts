@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
+import cors from 'cors'; // Import the cors middleware
 import { setupStaticServing } from './static-serve.js';
 import { db } from './db.js';
 import { authenticateToken, AuthRequest } from './auth.js';
@@ -12,10 +13,18 @@ dotenv.config();
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key';
 
-// Middleware
+// --- MIDDLEWARE ---
+
+// FIX: Added CORS middleware to allow credentials from the frontend origin
+app.use(cors({
+  origin: 'http://localhost:3000', // Allow requests from your Vite dev server
+  credentials: true, // Allow cookies to be sent
+}));
+
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 
 // --- UNIFIED AUTH ROUTES ---
 
@@ -54,7 +63,7 @@ app.post('/api/register', async (req, res) => {
       .executeTakeFirstOrThrow();
 
     const token = jwt.sign({ userId: newUser.id, role: newUser.role }, JWT_SECRET, { expiresIn: '1d' });
-    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
     
     res.status(201).json(newUser);
   } catch (err) {
@@ -77,7 +86,7 @@ app.post('/api/login', async (req, res) => {
     if (!passwordMatch) return res.status(401).json({ message: 'Invalid credentials' });
 
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
-    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
 
     const { password_hash, ...userWithoutPassword } = user;
     res.status(200).json(userWithoutPassword);
@@ -225,3 +234,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('Starting server...');
   startServer(parseInt(process.env.PORT || '3001', 10));
 }
+

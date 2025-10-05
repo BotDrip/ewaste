@@ -28,7 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchSession = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/me');
+      const response = await fetch('/api/me', {
+        credentials: 'include'
+      });
       if (response.ok) {
         const sessionData = await response.json();
         setSession(sessionData);
@@ -53,7 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch('/api/logout', { method: 'POST' });
+      await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
       setSession(null);
       toast({ title: 'Logged out successfully.' });
     } catch (error) {

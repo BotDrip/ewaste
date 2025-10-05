@@ -30,7 +30,9 @@ export function PickupList({ filter = 'user' }: PickupListProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(getApiEndpoint());
+      const response = await fetch(getApiEndpoint(), {
+        credentials: 'include'
+      });
       if (!response.ok) {
         if (response.status === 401) {
           setError("You need to be logged in to see pickups.");
@@ -55,6 +57,7 @@ export function PickupList({ filter = 'user' }: PickupListProps) {
     try {
       const response = await fetch(`/api/pickups/${pickupId}/assign`, {
         method: 'PUT',
+        credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to assign pickup.');
       toast({ title: "Success!", description: "Pickup assigned to you." });

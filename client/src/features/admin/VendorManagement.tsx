@@ -20,7 +20,9 @@ export function VendorManagement() {
     const fetchVendors = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/admin/vendors');
+        const response = await fetch('/api/admin/vendors', {
+          credentials: 'include'
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch vendors');
         }

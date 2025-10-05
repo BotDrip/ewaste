@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { APIProvider, Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Pickup } from '@/types';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import { useToast } from './ui/use-toast';
 
 // IMPORTANT: Replace with your actual API key in a .env file
@@ -15,7 +16,9 @@ export function PickupMap() {
 
     const fetchPickups = async () => {
         try {
-            const response = await fetch('/api/vendor/pickups/available');
+            const response = await fetch('/api/vendor/pickups/available', {
+                credentials: 'include'
+            });
             if (response.ok) {
                 const data = await response.json();
                 setPickups(data.filter((p: Pickup) => p.latitude && p.longitude));
@@ -33,6 +36,7 @@ export function PickupMap() {
         try {
           const response = await fetch(`/api/pickups/${pickupId}/assign`, {
             method: 'PUT',
+            credentials: 'include'
           });
           if (!response.ok) throw new Error('Failed to assign pickup.');
           toast({ title: "Success!", description: "Pickup assigned to you." });

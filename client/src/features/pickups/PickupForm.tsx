@@ -70,6 +70,7 @@ export function PickupForm({ onPickupRequested }: PickupFormProps) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           address,
           items_description: itemsDescription,
